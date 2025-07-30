@@ -1,0 +1,41 @@
+{% extends "account/base.html" %}
+
+{% block title %}로그아웃{% endblock %}
+
+{% block content %}
+<style>
+  .logout-container {
+    max-width: 400px;
+    margin: 100px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+  .logout-container p {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+  .logout-container form button {
+    background-color: #dc3545;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .logout-container form button:hover {
+    background-color: #a71d2a;
+  }
+</style>
+
+<div class="logout-container">
+  <p>정말 로그아웃 하시겠습니까?</p>
+  <form method="POST" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    <button type="submit">로그아웃</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% load socialaccount %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini 챗봇</title>
+
+    <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'create_chat_session' %}" class="new-chat-btn">새 채팅</a>
+            </div>
+            <ul class="history-list">
+                {% for session in chat_sessions %}
+                <li class="{% if session.id == chat_session.id %}active{% endif %}">
+                    <a href="{% url 'chat_session' session.id %}">{{ session.title }}</a>
+                    <form action="{% url 'delete_chat_session' session.id %}" method="post" class="delete-form" onsubmit="return confirm('이 대화를 정말 삭제하시겠습니까?');">
+                        {% csrf_token %}
+                        <button type="submit" class="delete-btn" title="삭제">×</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="sidebar-footer">
+                <p class='userName'>{{user.username}} {{user.last_name}}{{user.first_name}}님</p>
+                <a href="{% url 'account_logout' %}" class="logout-btn">로그아웃</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="chat-messages" id="chat-messages">
+                {% if not chat_session.messages.all and not chat_sessions %}
+                    <div style="text-align: center; margin-top: 40px; color: #666;">새 채팅을 시작해보세요!</div>
+                {% elif not chat_session.messages.all %}
+                    <div style="text-align: center; margin-top: 40px; color: #666;">무엇을 도와드릴까요?</div>
+                {% endif %}
+
+                {% for message in chat_session.messages.all %}
+                <div class="message-bubble {% if message.role == 'user' %}user-message{% else %}ai-message{% endif %}">
+                    {{ message.content|linebreaksbr }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="chat-input-area">
+                <form class="chat-input-wrapper" id="chat-form">
+                    {% csrf_token %} <input type="text" id="message-input" placeholder="무엇이든 물어보세요" autocomplete="off">
+                    <button type="submit">➤</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const currentSessionId = "{{ chat_session.id }}";
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const messageText = messageInput.value.trim();
+            if (messageText === '') return;
+
+            addMessageToUI('user', messageText);
+            messageInput.value = '';
+
+            const aiMessageDiv = addMessageToUI('ai', '');
+
+            try {
+                const response = await fetch(`/get-gemini-response/${currentSessionId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ message: messageText })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    aiMessageDiv.innerHTML += chunk.replace(/\n/g, '<br>');
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                aiMessageDiv.innerText = '오류가 발생했습니다.';
+            }
+
+            if (document.querySelectorAll('.message-bubble').length <= 2) {
+                // 설명: 첫 대화 후, 사이드바의 제목을 업데이트하기 위해 페이지를 새로고침합니다.
+                setTimeout(() => window.location.reload(), 500);
+            }
+        });
+
+        function addMessageToUI(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            messageDiv.classList.add(role.toLowerCase() + '-message');
+            
+            messageDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return messageDiv;
+        }
+    </script>
+</body>
+</html>

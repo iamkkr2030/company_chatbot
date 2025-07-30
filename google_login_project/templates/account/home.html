@@ -1,0 +1,14 @@
+{% extends 'account/base.html' %}
+{% load socialaccount %} 
+{% block title %}환영합니다{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 50px; background: white; border-radius: 8px;">
+    <h2>Gemini 챗봇</h2>
+    <p>Google 계정으로 로그인하고 채팅을 시작하세요.</p>
+    <br>
+    <a href="{% provider_login_url 'google' %}" style="text-decoration: none; background-color: #4285F4; color: white; padding: 12px 24px; border-radius: 4px; font-weight: bold;">
+        Login with Google
+    </a>
+</div>
+{% endblock %}
